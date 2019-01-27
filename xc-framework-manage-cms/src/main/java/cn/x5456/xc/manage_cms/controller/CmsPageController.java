@@ -4,27 +4,30 @@ import cn.x5456.xc.api.cms.CmsPageControllerApi;
 import cn.x5456.xc.domain.cms.dto.CmsPageDTO;
 import cn.x5456.xc.domain.cms.request.SavePageRequest;
 import cn.x5456.xc.domain.cms.request.UpdatePageRequest;
+import cn.x5456.xc.domain.cms.response.CmsCode;
 import cn.x5456.xc.domain.cms.response.CmsPageResult;
 import cn.x5456.xc.domain.cms.vo.CmsPageVO;
 import cn.x5456.xc.dto.PageDTO;
 import cn.x5456.xc.exception.IllegalParameterException;
 import cn.x5456.xc.manage_cms.dozer.IGenerator;
 import cn.x5456.xc.manage_cms.service.CmsPageService;
-import cn.x5456.xc.model.response.*;
+import cn.x5456.xc.model.response.CommonCode;
+import cn.x5456.xc.model.response.QueryResponseResult;
+import cn.x5456.xc.model.response.QueryResult;
+import cn.x5456.xc.model.response.ResponseResult;
 import cn.x5456.xc.web.BaseController;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-// TODO: 2019/1/25 把这里的log.xxx放到统一异常处理那处理
+// OK: 2019/1/25 把这里的log.xxx放到统一异常处理那处理
 // TODO: 2019/1/25 这个地址定义的不规范，详情请见readme.md
-@Slf4j
+//@Slf4j
 @RestController
 @RequestMapping("/cms/page")
 @Api(value="cms页面管理接口",description = "cms页面管理接口，提供页面的增、删、改、查")
@@ -51,42 +54,10 @@ public class CmsPageController extends BaseController implements CmsPageControll
         // controller层的职责
         // 1、参数校验
         if (page <= 0) {
-            log.error("cms-分页查询页面列表时，page传入的值<=0");
-            // TODO: 方案1： 异常改成枚举
-            // 为什么需要全局异常捕获，我 直接return + 打印日志 不好吗？？？
-//            throw new IllegalParameterException("page传入的值<=0，请检查参数是否正确");
-
-
-            // todo: 方案2:  全局异常处理根据异常设置code，根据信息设置msg???   枚举 ==> 实现  这样好不好
-            return new QueryResponseResult(new ResultCode() {
-
-                //是否成功
-                boolean success;
-                //操作代码
-                int code;
-                //提示信息
-                String message;
-
-
-                @Override
-                public boolean success() {
-                    return false;
-                }
-
-                @Override
-                public int code() {
-                    return 0;
-                }
-
-                @Override
-                public String message() {
-                    return null;
-                }
-            }, null);
+            throw new IllegalParameterException(CmsCode.CMS_INPUT_PARAM_PATH_ERROR);
         }
         if (size <= 0) {
-            log.error("cms-分页查询页面列表时，size传入的值<=0");
-            throw new IllegalParameterException("size传入的值<=0，请检查参数是否正确");
+            throw new IllegalParameterException(CmsCode.CMS_INPUT_PARAM_SIZE_ERROR);
         }
         // 2、封装DTO（只用于向service层传递，解耦）
         PageDTO pageDTO = new PageDTO();
@@ -105,7 +76,8 @@ public class CmsPageController extends BaseController implements CmsPageControll
         // 3、调用service层，并返回结果
         List<CmsPageDTO> cmsPageDTOList = cmsPageService.findList(pageDTO, cmsPageDTO);
 
-        // 4、返回结果检验（由于为空就说明出现异常了（正常是返回一个空[]），所以不需要进行判断null）
+        // 4、返回结果*字段*检验，而不是下面这个错误的例子
+        // （由于为空就说明出现异常了（正常是返回一个空[]），所以不需要进行判断null）
         // 在全局异常处理一下RunTime异常
 //        if (cmsPageDTOList != null) {
             // 5、转成vo
@@ -116,8 +88,6 @@ public class CmsPageController extends BaseController implements CmsPageControll
             // 6、封装结果对象
             return new QueryResponseResult(CommonCode.SUCCESS,queryResult);
 //        }
-
-        // TODO:为空就说明出现异常了（正常是返回一个空[]），可以抛出一个异常。但是是什么异常呢  service层会抛过来的吧
 
     }
 
@@ -144,8 +114,7 @@ public class CmsPageController extends BaseController implements CmsPageControll
         String pageWebPath = savePageRequest.getPageWebPath();
 
         if (StringUtils.isAnyBlank(pageName, siteId, pageWebPath)){
-            log.error("cms-新增页面时，pageName, siteId,pageWebPath中有的参数传入为空");
-            throw new IllegalParameterException("pageName、siteId、pageWebPath需要全部不为空，请检查请求参数！");
+            throw new IllegalParameterException(CmsCode.CMS_INPUT_PARAMS_ERROR);
         }
 
         // 2、封装DTO
@@ -170,8 +139,7 @@ public class CmsPageController extends BaseController implements CmsPageControll
 
         // 1、参数校验
         if (StringUtils.isBlank(pageId)) {
-            log.error("cms-根据pageId查询页面时，输入的pageId为空");
-            throw new IllegalParameterException("输入参数为空，请检查请求参数");
+            throw new IllegalParameterException(CmsCode.CMS_INPUT_PARAMS_PAGEID_ERROR);
         }
 
         // 2、调用service层
@@ -189,14 +157,16 @@ public class CmsPageController extends BaseController implements CmsPageControll
     public CmsPageResult updatePageByPageId(UpdatePageRequest updatePageRequest) {
 
         // 1、参数校验
-        String pageName = updatePageRequest.getPageName();
-        String siteId = updatePageRequest.getSiteId();
-        String pageWebPath = updatePageRequest.getPageWebPath();
+//        String pageName = updatePageRequest.getPageName();
+//        String siteId = updatePageRequest.getSiteId();
+//        String pageWebPath = updatePageRequest.getPageWebPath();
         String pageId = updatePageRequest.getPageId();
 
-        if (StringUtils.isAnyBlank(pageName, siteId, pageWebPath ,pageId)){
-            log.error("cms-修改页面时，pageName、siteId、pageWebPath、pageId中有的参数传入为空");
-            throw new IllegalParameterException("pageName、siteId、pageWebPath、pageId需要全部不为空，请检查请求参数！");
+//        if (StringUtils.isAnyBlank(pageName, siteId, pageWebPath ,pageId)){
+//            throw new IllegalParameterException(CmsCode.CMS_INPUT_PARAMS_ERROR2);
+//        }
+        if (StringUtils.isBlank(pageId)){
+            throw new IllegalParameterException(CmsCode.CMS_INPUT_PARAM_PATHID_ERROR);
         }
 
         // 2、转dto
@@ -216,8 +186,7 @@ public class CmsPageController extends BaseController implements CmsPageControll
 
         // 1、参数校验
         if (StringUtils.isBlank(pageId)) {
-            log.error("cms-根据pageId删除页面时，输入的pageId为空");
-            throw new IllegalParameterException("输入参数为空，请检查请求参数");
+            throw new IllegalParameterException(CmsCode.CMS_INPUT_PARAMS_PAGEID_ERROR);
         }
 
         // 2、调用service层

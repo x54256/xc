@@ -2,13 +2,13 @@ package cn.x5456.xc.manage_cms.service.impl;
 
 import cn.x5456.xc.domain.cms.CmsPage;
 import cn.x5456.xc.domain.cms.dto.CmsPageDTO;
+import cn.x5456.xc.domain.cms.response.CmsCode;
 import cn.x5456.xc.dto.PageDTO;
 import cn.x5456.xc.exception.ExistedRecordedException;
 import cn.x5456.xc.exception.ObjectIsNullException;
 import cn.x5456.xc.manage_cms.dao.CmsPageRepository;
 import cn.x5456.xc.manage_cms.dozer.IGenerator;
 import cn.x5456.xc.manage_cms.service.CmsPageService;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
@@ -21,7 +21,7 @@ import java.util.Optional;
 /**
  * @author x5456
  */
-@Slf4j
+//@Slf4j
 @Service
 public class CmsPageServiceImpl implements CmsPageService {
 
@@ -49,9 +49,14 @@ public class CmsPageServiceImpl implements CmsPageService {
         // 2、使用dozer将其转成po
         CmsPage cmsPage = dozer.convert(cmsPageDTO, CmsPage.class);
 
+        // OK: 2019/1/25 改成if判断
         // 3、构建条件匹配器，并对pageAliase设置模糊查询
-        ExampleMatcher exampleMatcher = ExampleMatcher.matching()
-                .withMatcher("pageAliase",ExampleMatcher.GenericPropertyMatchers.contains());
+        ExampleMatcher exampleMatcher = ExampleMatcher.matching();
+
+        if (StringUtils.isNotBlank(cmsPageDTO.getPageAliase())){
+            exampleMatcher = exampleMatcher.withMatcher("pageAliase",ExampleMatcher.GenericPropertyMatchers.contains());
+        }
+
 
         Example<CmsPage> example = Example.of(cmsPage, exampleMatcher);
 
@@ -79,8 +84,7 @@ public class CmsPageServiceImpl implements CmsPageService {
         CmsPage checkUnique = cmsPageRepository.findByPageNameAndSiteIdAndPageWebPath(pageName,siteId,pageWebPath);
 
         if (checkUnique !=  null) {
-            log.error("cms-新增页面时，经检查 数据已存在");
-            throw new ExistedRecordedException();
+            throw new ExistedRecordedException(CmsCode.CMS_ADDPAGE_EXISTS);
         }
 
         // 2、转换成po
@@ -107,24 +111,51 @@ public class CmsPageServiceImpl implements CmsPageService {
     @Override
     public CmsPageDTO update(CmsPageDTO cmsPageDTO) {
 
-        // 1、查询mongo，判断是否有数据
-        CmsPage cmsPage = this.getPageByPageId(cmsPageDTO.getPageId());
+        // 1、参数校验
+        // 1）查询mongo，判断是否有数据
+        String pageId = cmsPageDTO.getPageId();
+        CmsPage cmsPage = this.getPageByPageId(pageId);
         if (cmsPage == null) {
-            log.error("cms-修改页面时，根据pageId查询到的数据为空");
-            throw new ObjectIsNullException("根据pageId查询到的数据为空，请检查输入参数！");
+            throw new ObjectIsNullException(CmsCode.CMS_FIND_PAGE_IS_NULL);
         }
 
-        // 2、手动对输入参数进行判断，因为有些可能我们不能让它改
-        // 模板id
-        String templateId = cmsPageDTO.getTemplateId();
         // 所属站点
         String siteId = cmsPageDTO.getSiteId();
-        // 页面别名
-        String pageAliase = cmsPageDTO.getPageAliase();
         // 页面名称
         String pageName = cmsPageDTO.getPageName();
         // 访问路径
         String pageWebPath = cmsPageDTO.getPageWebPath();
+
+        // TODO: 2019/1/27 yinzong
+        if (!StringUtils.isAllBlank(siteId,pageName,pageWebPath)){
+            // 2）验证数据唯一性
+            String siteId2 = siteId;
+            String pageName2 = pageName;
+            String pageWebPath2 = pageWebPath;
+
+            if (StringUtils.isBlank(siteId)){
+                siteId2 = cmsPage.getSiteId();
+            }
+            if (StringUtils.isBlank(pageName)){
+                pageName2 = cmsPage.getPageName();
+            }
+            if (StringUtils.isBlank(pageWebPath)){
+                pageWebPath2 = cmsPage.getPageWebPath();
+            }
+
+            CmsPage checkUnique = cmsPageRepository.findByPageNameAndSiteIdAndPageWebPath(siteId2,pageName2,pageWebPath2);
+            if (checkUnique !=  null) {
+                throw new ExistedRecordedException(CmsCode.CMS_ADDPAGE_EXISTS);
+            }
+        }
+
+
+
+        // 2、手动对输入参数进行判断，因为有些可能我们不能让它改
+        // 模板id
+        String templateId = cmsPageDTO.getTemplateId();
+        // 页面别名
+        String pageAliase = cmsPageDTO.getPageAliase();
         // 物理路径
         String pagePhysicalPath = cmsPageDTO.getPagePhysicalPath();
 
@@ -158,8 +189,7 @@ public class CmsPageServiceImpl implements CmsPageService {
         // 1、查询mongo，判断是否有数据
         CmsPage cmsPage = this.getPageByPageId(pageId);
         if (cmsPage == null) {
-            log.error("cms-删除页面时，根据pageId查询到的数据为空");
-            throw new ObjectIsNullException("根据pageId查询到的数据为空，请检查输入参数！");
+            throw new ObjectIsNullException(CmsCode.CMS_FIND_PAGE_IS_NULL);
         }
 
         // 2、删除操作

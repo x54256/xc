@@ -25,20 +25,6 @@ public class EJBGenerator implements IGenerator {
         return this.dozerMapper.map(s, clz);
     }
 
-//     public <T, S> ResultSet<T> convert(ResultSet<S> s, Class<T> clz) {
-//     if (s == null) {
-//     return null;
-//     }
-//     ResultSet<T> resultSet = new ResultSet<T>();
-//     for (S vs : s.getResult()) {
-//     resultSet.getResult().add(this.dozerMapper.map(vs, clz));
-//     }
-//     resultSet.setTotal(s.getTotal());
-//     resultSet.setExt(s.getExt());
-//     resultSet.setModifyTime(s.getModifyTime());
-//     return resultSet;
-//     }
-
     public <T, S> List<T> convert(List<S> s, Class<T> clz) {
         if (s == null) {
             return null;
